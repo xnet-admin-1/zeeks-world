@@ -5,7 +5,7 @@ import java.net.URI
 
 object OliverLlm {
     private const val API_URL = "https://inf.xnet.ngo/v1/chat/completions"
-    private var apiKey = BuildConfig.LLM_API_KEY
+    private var apiKey = System.getenv("LLM_API_KEY") ?: ""
     private const val MODEL = "pollinations-pollen/gemini-fast"
     private const val SYSTEM_PROMPT = "You are Oliver, a 1-year-old orange tabby cat. You speak simply so a 5-year-old can understand. You mix in cat sounds like meow, purr, mrrp. Keep responses to 1-2 short sentences."
 

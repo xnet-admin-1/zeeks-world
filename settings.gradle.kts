@@ -6,7 +6,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "zeeks-world"
+rootProject.name = "zekes-world"
 
 include(":core")
 include(":desktop")

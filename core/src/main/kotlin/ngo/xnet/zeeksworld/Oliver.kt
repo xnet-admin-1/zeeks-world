@@ -2,8 +2,6 @@ package ngo.xnet.zeeksworld
 
 import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.scene.geometry.MeshBuilder
-import de.fabmax.kool.util.Color
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -37,28 +35,6 @@ class Oliver(startPos: Vec3f = Vec3f(3f, 1f, 3f)) {
             }
             else -> {}
         }
-    }
-
-    fun <T : de.fabmax.kool.util.Struct> buildMesh(builder: MeshBuilder<T>) {
-        val ox = position.x; val oy = position.y; val oz = position.z; val s = 0.5f
-        // Body
-        builder.color = Color(1f, 0.6f, 0.2f, 1f)
-        for (bx in 0..1) for (by in 0..2) for (bz in 0..1) {
-            builder.cube { origin.set(ox + bx * s, oy + by * s, oz + bz * s); size.set(s, s, s) }
-        }
-        // Head
-        builder.color = Color(1f, 0.7f, 0.3f, 1f)
-        for (bx in 0..1) for (by in 0..1) for (bz in 0..1) {
-            builder.cube { origin.set(ox + bx * s, oy + 3 * s + by * s, oz + bz * s); size.set(s, s, s) }
-        }
-        // Ears
-        builder.color = Color(1f, 0.5f, 0.1f, 1f)
-        builder.cube { origin.set(ox, oy + 5 * s, oz); size.set(s, s, s) }
-        builder.cube { origin.set(ox + s, oy + 5 * s, oz); size.set(s, s, s) }
-        // Tail
-        builder.color = Color(1f, 0.6f, 0.2f, 1f)
-        builder.cube { origin.set(ox - s, oy, oz); size.set(s, s, s) }
-        builder.cube { origin.set(ox - 2 * s, oy + s * 0.5f, oz); size.set(s, s, s) }
     }
 
     fun shouldSpeak(): Boolean {

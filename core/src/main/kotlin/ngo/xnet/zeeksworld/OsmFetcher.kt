@@ -1,8 +1,6 @@
 package ngo.xnet.zeeksworld
 
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URI
 
 data class LatLon(val lat: Double, val lon: Double)
 data class Building(val outline: List<LatLon>, val height: Double, val name: String)
@@ -17,29 +15,9 @@ data class OsmData(
 )
 
 object OsmFetcher {
-    private const val OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-
-    fun fetchArea(lat: Double, lon: Double, radiusMeters: Double): OsmData {
-        val query = "[out:json][timeout:90];(" +
-            "way[\"building\"](around:%.0f,%.6f,%.6f);".format(radiusMeters, lat, lon) +
-            "way[\"highway\"](around:%.0f,%.6f,%.6f);".format(radiusMeters, lat, lon) +
-            "way[\"leisure\"=\"park\"](around:%.0f,%.6f,%.6f);".format(radiusMeters, lat, lon) +
-            "way[\"natural\"=\"water\"](around:%.0f,%.6f,%.6f);".format(radiusMeters, lat, lon) +
-            ");out geom;"
-
-        val body = "data=${java.net.URLEncoder.encode(query, "UTF-8")}"
-        val conn = URI(OVERPASS_URL).toURL().openConnection() as HttpURLConnection
-        conn.requestMethod = "POST"
-        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-        conn.setRequestProperty("User-Agent", "zeeks-world/1.0")
-        conn.doOutput = true
-        conn.outputStream.use { it.write(body.toByteArray()) }
-
-        check(conn.responseCode == 200) {
-            "Overpass returned ${conn.responseCode}: ${conn.errorStream?.bufferedReader()?.readText()?.take(200)}"
-        }
-
-        val json = conn.inputStream.bufferedReader().readText()
+    fun loadBundled(): OsmData {
+        val json = OsmFetcher::class.java.getResourceAsStream("/meridian_osm.json")!!
+            .bufferedReader().readText()
         return parseResponse(JSONObject(json))
     }
 

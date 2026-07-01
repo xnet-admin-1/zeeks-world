@@ -1,7 +1,25 @@
+# Gradle
 .gradle/
 build/
-*.class
-*.jar
-*.log
 local.properties
-secrets.env
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+*.apk
+*.aab
+*.ap_
+
+# Accidental files
+apt
+install
+sudo
+aiope
+update
+updatesudo

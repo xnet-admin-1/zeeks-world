@@ -5,9 +5,9 @@ import de.fabmax.kool.KoolConfigJvm
 
 fun main() = KoolApplication(
     config = KoolConfigJvm(
-        windowTitle = "Zeek's World"
+        windowTitle = "Zekes World"
     )
 ) {
-    val game = ZeeksGame()
+    val game = ZekesGame()
     game.createScenes(ctx).forEach { ctx.scenes += it }
 }

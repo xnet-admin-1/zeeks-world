@@ -3,42 +3,42 @@ package ngo.xnet.zeeksworld
 import kotlin.math.*
 
 object WorldGenerator {
-    private const val WORLD_RADIUS = 50
+    private const val WORLD_RADIUS = 100
     private const val METERS_PER_DEG_LAT = 111320.0
 
     fun generate(osm: OsmData, centerLat: Double, centerLon: Double, world: World) {
         val metersPerDegLon = METERS_PER_DEG_LAT * cos(centerLat * PI / 180)
 
         fun toBlock(ll: LatLon): Pair<Int, Int> {
-            val dx = (ll.lon - centerLon) * metersPerDegLon / 2.0
-            val dz = (ll.lat - centerLat) * METERS_PER_DEG_LAT / 2.0
+            val dx = (ll.lon - centerLon) * metersPerDegLon
+            val dz = (ll.lat - centerLat) * METERS_PER_DEG_LAT
             return dx.roundToInt() to dz.roundToInt()
         }
 
         fun inBounds(x: Int, z: Int) = x in -WORLD_RADIUS until WORLD_RADIUS && z in -WORLD_RADIUS until WORLD_RADIUS
 
-        // Ground layer aligned to chunks
+        // Ground layer
         val groundRadius = ((WORLD_RADIUS / CHUNK_SIZE) + 1) * CHUNK_SIZE
         for (x in -groundRadius until groundRadius)
             for (z in -groundRadius until groundRadius)
                 world.setBlock(x, 0, z, Block.GRASS)
 
-        // Water
+        // Water (ground level)
         for (w in osm.water)
-            fillPolygon(w.outline, ::toBlock, ::inBounds) { x, z -> world.setBlock(x, 1, z, Block.WATER) }
+            fillPolygon(w.outline, ::toBlock, ::inBounds) { x, z -> world.setBlock(x, 0, z, Block.WATER) }
 
-        // Parks
+        // Parks (ground level)
         for (p in osm.parks) {
-            fillPolygon(p.outline, ::toBlock, ::inBounds) { x, z -> world.setBlock(x, 1, z, Block.GRASS) }
+            fillPolygon(p.outline, ::toBlock, ::inBounds) { x, z -> world.setBlock(x, 0, z, Block.GRASS) }
             if (p.outline.isNotEmpty()) {
                 val (bx, bz) = toBlock(p.outline[0])
-                for (dx in intArrayOf(-3, 3))
-                    for (dz in intArrayOf(-3, 3))
+                for (dx in intArrayOf(-5, 5))
+                    for (dz in intArrayOf(-5, 5))
                         if (inBounds(bx + dx, bz + dz)) placeTree(world, bx + dx, bz + dz)
             }
         }
 
-        // Roads
+        // Roads (ground level)
         for (r in osm.roads) {
             val halfW = ceil(r.width / 2).toInt()
             for (i in 0 until r.points.size - 1) {
@@ -47,42 +47,61 @@ object WorldGenerator {
                 plotLine(x0, z0, x1, z1) { x, z ->
                     for (dx in -halfW..halfW)
                         for (dz in -halfW..halfW)
-                            if (inBounds(x + dx, z + dz)) world.setBlock(x + dx, 1, z + dz, Block.STONE)
+                            if (inBounds(x + dx, z + dz)) world.setBlock(x + dx, 0, z + dz, Block.STONE)
                 }
             }
         }
 
-        // Buildings
+        // Buildings (walls start at y=1 on top of ground)
         for (b in osm.buildings) {
-            val height = (b.height * 2).roundToInt().coerceIn(6, 10)
+            val height = (b.height * 2.0).roundToInt().coerceIn(6, 15)
+
+            // Build all walls first
             for (i in 0 until b.outline.size - 1) {
                 val (x0, z0) = toBlock(b.outline[i])
                 val (x1, z1) = toBlock(b.outline[i + 1])
                 plotLine(x0, z0, x1, z1) { x, z ->
                     if (!inBounds(x, z)) return@plotLine
                     for (y in 1..height)
-                        world.setBlock(x, y, z, if (y > 1 && x % 2 == 0) Block.GLASS else Block.STONE)
+                        world.setBlock(x, y, z, if (y > 1 && y < height && x % 3 == 0) Block.GLASS else Block.STONE)
                 }
             }
-            fillPolygon(b.outline, ::toBlock, ::inBounds) { x, z -> world.setBlock(x, 1, z, Block.WOOD) }
+
+            // Carve door after walls are complete
+            if (b.outline.size >= 2) {
+                val (x0, z0) = toBlock(b.outline[0])
+                val (x1, z1) = toBlock(b.outline[1])
+                val wallPts = mutableListOf<Pair<Int, Int>>()
+                plotLine(x0, z0, x1, z1) { x, z -> wallPts.add(x to z) }
+                val mid = wallPts.size / 2
+                val start = (mid - 2).coerceAtLeast(0)
+                val end = (mid + 1).coerceAtMost(wallPts.size - 1)
+                for (i in start..end) {
+                    val (px, pz) = wallPts[i]
+                    if (!inBounds(px, pz)) continue
+                    for (y in 1..4) world.setBlock(px, y, pz, Block.AIR)
+                }
+            }
+
+            // Floor at ground level
+            fillPolygon(b.outline, ::toBlock, ::inBounds) { x, z -> world.setBlock(x, 0, z, Block.WOOD) }
         }
 
-        // Scatter trees along roads and in open grass
+        // Trees
         val rng = java.util.Random(42)
-        for (x in -groundRadius until groundRadius step 4) {
-            for (z in -groundRadius until groundRadius step 4) {
-                if (rng.nextFloat() > 0.15f) continue // 15% chance
-                // Only place on grass (don't overwrite buildings/roads)
+        for (x in -groundRadius until groundRadius step 6) {
+            for (z in -groundRadius until groundRadius step 6) {
+                if (rng.nextFloat() > 0.12f) continue
                 if (world.getBlock(x, 0, z) == Block.GRASS && world.getBlock(x, 1, z) == Block.AIR) {
                     placeTree(world, x, z)
                 }
             }
         }
 
-        // Bushes (single leaf blocks) for ground cover
-        for (x in -groundRadius until groundRadius step 3) {
-            for (z in -groundRadius until groundRadius step 3) {
-                if (rng.nextFloat() > 0.2f) continue // 20% chance
+        // Bushes
+        for (x in -groundRadius until groundRadius step 4) {
+            for (z in -groundRadius until groundRadius step 4) {
+                if (rng.nextFloat() > 0.18f) continue
                 if (world.getBlock(x, 0, z) == Block.GRASS && world.getBlock(x, 1, z) == Block.AIR) {
                     world.setBlock(x, 1, z, Block.LEAF)
                 }
@@ -91,9 +110,10 @@ object WorldGenerator {
     }
 
     private fun placeTree(world: World, x: Int, z: Int) {
-        for (y in 1..6) world.setBlock(x, y, z, Block.WOOD)
+        val trunkHeight = 5
+        for (y in 1..trunkHeight) world.setBlock(x, y, z, Block.WOOD)
         for (dy in 0..2) for (dx in -2..2) for (dz in -2..2) {
-            if (dx*dx + dz*dz <= 5) world.setBlock(x + dx, 7 + dy, z + dz, Block.LEAF)
+            if (dx * dx + dz * dz <= 5) world.setBlock(x + dx, trunkHeight + 1 + dy, z + dz, Block.LEAF)
         }
     }
 
